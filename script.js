@@ -1,31 +1,172 @@
 const canvas = document.getElementById("canvas1")
-console.log(canvas)
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const gl = canvas.getContext("webgl2");
 
-//gets called everytime we resize, this is to prevent the drawings scaling with the size of the canvas
-window.addEventListener("resize",() => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+let output_scale = 1; 
+canvas.width = canvas.clientWidth * output_scale;
+canvas.height = canvas.clientHeight * output_scale;
+
+function main() {
+    var vertexShaderSource = `#version 300 es 
+    //preparing the variables that will be sendt to the GPU,
+    //variables that will be inside the GPU
+    //these will be interactable/preparable from the CPU/javascript, then sendt to the GPU. But they need to be defined as we are doing here
+    in vec2 a_position;
+    out vec4 v_color;
+    uniform vec2 u_resolution;
+
+    void main() {
+        //converts the position from pixels to 0.0 to 1.0, then to 0.0 to 2.0, then to -1.0 to 1.0
+        vec2 clipSpace = ((a_position / u_resolution) * 2.0) - 1.0;
+        gl_Position = vec4(clipSpace, 0, 1);
+        v_color = gl_Position * 0.5 + 0.5;
+    }
+    `;
+
+    var fragmentShaderSource = `#version 300 es
+    //fragment shaders do not have a default value, so we use highp because its good
+    precision highp float;
+    in vec4 v_color;
+    out vec4 outColor;
+
+    void main() {
+        //setting output color to constant reddish-purple
+        outColor = v_color;
+    }
+    `;
+
+    function createShader(gl,type,source) {
+        var shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        //seems it gets the status of the creation of a shader, and if it worked, returns the created shader
+        var success = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+        if (success) {
+            return shader
+        }
     
-    drawings()
-})
+        //of course, if the code is not returned, it will continue here and deletee the shader after logging it to console
+        console.log("error mfs",gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+    }
 
-//gets called once when we run the code
-drawings()
+    function createProgram(gl, vertexShader, fragmentShader) {
+        var program = gl.createProgram();
+        gl.attachShader(program,vertexShader);
+        gl.attachShader(program,fragmentShader);
+        gl.linkProgram(program);
+        var success = gl.getProgramParameter(program,gl.LINK_STATUS);
+        if (success) {
+            return program;
+        }
+        
+        console.log(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+    }
 
-//all of the things we want to draw go here
-function drawings() {
-    ctx.fillStyle = "white";
-    ctx.fillRect(10,20,150,50);
-    
+    function draw(offset,count) {
+        var primitiveType = gl.TRIANGLES;
+        gl.drawArrays(primitiveType,offset,count);
+    }
+
+    var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    var program = createProgram(gl,vertexShader, fragmentShader);
+
+    //finding the position of the a_position attribute we've made in the GPU
+    //this step should be done during initalization, since this is only neccessary once.
+    //in our case we only need to find one attribute position, since we only have one attribute
+    //prepared at the GPUs end
+    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+    var resolutionUniformLocation = gl.getUniformLocation(program,"u_resolution");
+
+    //next to send update the variable, we need to use a buffer, as attributes get their data from buffers
+    var positionBuffer = gl.createBuffer();
+
+    //here we bind the buffer to the positionBuffer this is connecting the value of the positionBuffer javascript variable to the ARRAY_BUFFER, idk what that is yet tho
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    //next lets make 3 2d points
+
+    //the position are written in webgl viewport, that is to say that 0 is really -1, and 100vw is 1
+
+    //here we are making a collection of attribute state, also known as vertex array
+    var vao = gl.createVertexArray();
+
+    //sets the currently read vertexarray to vao
+    gl.bindVertexArray(vao);
+    //enables positionAttributeLocation so that webgl knows to pull data out of it. If it was not enabled, it would have a constant value, (test this out cuz idk what that means)
+    gl.enableVertexAttribArray(positionAttributeLocation);
+
+    var size = 2;           //2 components per iteration
+    var type = gl.FLOAT;    //specifies that the data is 32bit floats
+    var normalize = false;  //turns normalization on or off (normalize the data or not)
+    var stride = 0;         //0 = move forward sizeof(type) each iteration to get the position of the next data (gotta think in the stack yo)
+    var offset = 0;         //starts at the beginning of the buffer
+
+    //doing this will also bind the currently bound ARRAY_BUFFER to the positionBuffer, meaning that ARRAY_BUFFER is free to be bound to something else while the
+    //attribute that was bound will continue to be bound to the positionBuffer
+    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset)
+
+    //webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+    //set the viewport of gl, converting the canvas width and height to values between -1 and 1
+    gl.viewport(0,0,gl.canvas.width, gl.canvas.height);
+
+    //here we clear the screen
+    gl.clearColor(0,0,0,0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    //here we tell webgl to use the shader program we made
+    gl.useProgram(program)
+
+    //pass in the canvas resolution
+    gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
+    let top = innerHeight
+    let side = 250
+    let list = []
+    for(i = 0; i < 12; i = i + 2) {
+
+        list.push(i*side)       //x1
+        list.push(0)            //y1
+        list.push(i*side)       //x2
+        list.push(top)          //y2
+        list.push((i+1)*side)   //x3
+        list.push(top)          //y3
+        
+        list.push((i+1)*side)       //x1
+        list.push(top)            //y1
+        list.push((i+1)*side)       //x2
+        list.push(0)          //y2
+        list.push(((i+1)+1)*side)   //x3
+        list.push(0)          //y3
+
+    }
+    console.log(list)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(list),gl.STATIC_DRAW)
+    gl.drawArrays(gl.TRIANGLES,0,list.length/2);
 }
 
-//how to make fluid simulator
-//1. information will be stored in a grid, the grid will contain information for the fluid in each block (things like velocity, density)
-//2. the grid will be deteministic, which is to say that we will use the previous state of the grid to calculate the next state of the grid, and repeat this process
-//3. to simulate pressure, we need to create a diffusion of the density of a grid. This is done by defining a variable (cgrid_density) to contain the density value 
-//   of a grid, next we will calculate the value of the average density of the neigbouring squares (cgrid_friendavg_density) Lastly we will define a value k that
-//   contains a value representing how much we are changing the value (timestep/deltatime)
-//4. 
+main();
+
+function makeTriangle(pos1,pos2,pos3) {
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        pos1[0],pos1[1],
+        pos2[0],pos2[1],
+        pos3[0],pos3[1],
+    ]),gl.STATIC_DRAW);
+}
+
+function makeRectangle(x,y,width,height) {
+    let x1 = x;
+    let x2 = x+width;
+    let y1 = y;
+    let y2 = y+height;
+
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        x1,y1,
+        x2,y1,
+        x1,y2,
+        x1,y2,
+        x2,y1,
+        x2,y2
+    ]),gl.STATIC_DRAW);
+}
