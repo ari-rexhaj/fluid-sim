@@ -5,6 +5,8 @@ let output_scale = 1;
 canvas.width = canvas.clientWidth * output_scale;
 canvas.height = canvas.clientHeight * output_scale;
 
+addEventListener("mousemove", (event) => {})
+
 function main() {
     var vertexShaderSource = `#version 300 es 
     //preparing the variables that will be sendt to the GPU,
@@ -63,11 +65,6 @@ function main() {
         gl.deleteProgram(program);
     }
 
-    function draw(offset,count) {
-        var primitiveType = gl.TRIANGLES;
-        gl.drawArrays(primitiveType,offset,count);
-    }
-
     var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
     var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
     var program = createProgram(gl,vertexShader, fragmentShader);
@@ -118,31 +115,56 @@ function main() {
     //here we tell webgl to use the shader program we made
     gl.useProgram(program)
 
-    //pass in the canvas resolution
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
-    let top = innerHeight
-    let side = 250
-    let list = []
-    for(i = 0; i < 12; i = i + 2) {
-
-        list.push(i*side)       //x1
-        list.push(0)            //y1
-        list.push(i*side)       //x2
-        list.push(top)          //y2
-        list.push((i+1)*side)   //x3
-        list.push(top)          //y3
+    function draw(mousex,mousey) {
         
-        list.push((i+1)*side)       //x1
-        list.push(top)            //y1
-        list.push((i+1)*side)       //x2
-        list.push(0)          //y2
-        list.push(((i+1)+1)*side)   //x3
-        list.push(0)          //y3
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        //pass in the canvas resolution
+        let top = canvas.height
+        let side = canvas.width
+        let list = []
+        let spacex = 10
+        let spacey = 10
 
+
+        //left triangle
+        list.push(0)            //x1
+        list.push(top-spacey)          //y1
+        list.push(0)            //x2
+        list.push(spacey)            //y2
+        list.push(mousex-spacex)       //x3
+        list.push(mousey)       //y3
+
+        //right triangle
+        list.push(side)            //x1
+        list.push(top-spacey)          //y1
+        list.push(side)            //x2
+        list.push(spacey)            //y2
+        list.push(mousex+spacex)       //x3
+        list.push(mousey)       //y3
+
+        //top triangle
+        list.push(spacex)            //x1
+        list.push(top)          //y1
+        list.push(side-spacex)            //x2
+        list.push(top)            //y2
+        list.push(mousex)       //x3
+        list.push(mousey+spacey)       //y3
+
+        //bottom triangle
+        list.push(spacex)            //x1
+        list.push(0)          //y1
+        list.push(side-spacex)            //x2
+        list.push(0)            //y2
+        list.push(mousex)       //x3
+        list.push(mousey-spacey)       //y3
+
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(list),gl.STATIC_DRAW)
+        gl.drawArrays(gl.TRIANGLES,0,list.length/2);
     }
-    console.log(list)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(list),gl.STATIC_DRAW)
-    gl.drawArrays(gl.TRIANGLES,0,list.length/2);
+    onmousemove = (e) => {
+        draw(e.clientX,(canvas.height-e.clientY))
+    }
 }
 
 main();
