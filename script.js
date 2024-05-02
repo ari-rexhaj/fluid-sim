@@ -134,9 +134,10 @@ function main() {
         }
     }
 
-
+    let startAngle = 0;    
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
     function drawEffect(mousex,mousey) {
+        startAngle += 0.1;
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.uniform1i(whiteColorLocation,+!whiteBackground)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0,0,canvas.height,canvas.width,canvas.height,canvas.width,canvas.height,canvas.width,0,0,0]),gl.STATIC_DRAW)
@@ -144,47 +145,10 @@ function main() {
         gl.uniform1i(whiteColorLocation,+whiteBackground)
         
         //pass in the canvas resolution
-        let top = canvas.height
-        let side = canvas.width
-        let list = []
-        let spacex = 10
-        let spacey = 10
+        shapeList = shapeGen(mousex,mousey,64,75,startAngle)
 
-
-        //left triangle
-        list.push(0)            //x1
-        list.push(top-spacey)          //y1
-        list.push(0)            //x2
-        list.push(spacey)            //y2
-        list.push(mousex-spacex)       //x3
-        list.push(mousey)       //y3
-
-        //right triangle
-        list.push(side)            //x1
-        list.push(top-spacey)          //y1
-        list.push(side)            //x2
-        list.push(spacey)            //y2
-        list.push(mousex+spacex)       //x3
-        list.push(mousey)       //y3
-
-        //top triangle
-        list.push(spacex)            //x1
-        list.push(top)          //y1
-        list.push(side-spacex)            //x2
-        list.push(top)            //y2
-        list.push(mousex)       //x3
-        list.push(mousey+spacey)       //y3
-
-        //bottom triangle
-        list.push(spacex)            //x1
-        list.push(0)          //y1
-        list.push(side-spacex)            //x2
-        list.push(0)            //y2
-        list.push(mousex)       //x3
-        list.push(mousey-spacey)       //y3
-
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(list),gl.STATIC_DRAW)
-        gl.drawArrays(gl.TRIANGLES,0,list.length/2);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shapeList),gl.STATIC_DRAW)
+        gl.drawArrays(gl.TRIANGLES,0,shapeList.length/2);
     }
     onmousemove = (e) => {
         lastMouseX = e.clientX;
@@ -195,6 +159,27 @@ function main() {
 }
 
 main();
+
+function shapeGen(x,y,segments,radius,angle) {
+    let list = [];
+
+    let xpos_start = x;
+    let ypos_start = y;
+
+    for(let n = 0; n < segments;n++) {
+        list.push(xpos_start)  //x1
+        list.push(ypos_start)  //y1
+        
+        for(let i = 0; i < 2; i++) {
+            let arguement = (angle/segments)+(((2*Math.PI)/segments)*(i+n-1))   //this is a math equation that when used as i have, lets you generate N-cornered shapes
+            let xpos = radius*Math.cos(arguement)+xpos_start;
+            let ypos = radius*Math.sin(arguement)+ypos_start;
+            list.push(xpos) //x2 and x3
+            list.push(ypos) //y2 and y3
+        }
+    }
+    return list
+}
 
 function makeTriangle(pos1,pos2,pos3) {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
