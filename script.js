@@ -5,8 +5,6 @@ let output_scale = 1;
 canvas.width = canvas.clientWidth * output_scale;
 canvas.height = canvas.clientHeight * output_scale;
 
-addEventListener("mousemove", (event) => {})
-
 function main() {
     var vertexShaderSource = `#version 300 es 
     //preparing the variables that will be sendt to the GPU,
@@ -129,18 +127,25 @@ function main() {
     let lastMouseY = window.innerHeight/2;
     
     let startAngle = 0;    
-    let segments = 64;
-    let radius = 75;
+    let segments = 2;
+    let radius = 0;
+    
+    let animPos_x = 0;
+    let animPos_y = window.innerHeight/2;
+    
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
     function drawEffect(mousex,mousey) {
         gl.clear(gl.COLOR_BUFFER_BIT)
+        
+        //drawing the background
         gl.uniform1i(whiteColorLocation,+!whiteBackground)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0,0,canvas.height,canvas.width,canvas.height,canvas.width,canvas.height,canvas.width,0,0,0]),gl.STATIC_DRAW)
         gl.drawArrays(gl.TRIANGLES,0,6);    
+        
         gl.uniform1i(whiteColorLocation,+whiteBackground)
         
         //pass in the canvas resolution
-        shapeList = shapeGen(mousex,mousey,segments,radius,startAngle)
+        shapeList = shapeGen(animPos_x,animPos_y,segments,radius,startAngle)
         
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shapeList),gl.STATIC_DRAW)
         gl.drawArrays(gl.TRIANGLES,0,shapeList.length/2);
@@ -172,35 +177,109 @@ function main() {
             console.log(segments)
         }
 
-        drawEffect(lastMouseX,lastMouseY)
     }
     onmousemove = (e) => {
         lastMouseX = e.clientX;
         lastMouseY = (canvas.height-e.clientY);
-        drawEffect(lastMouseX,lastMouseY)
     }
-    drawEffect(lastMouseX,lastMouseY)
+
+    onmousedown = (e) => {
+        if(tick > abt_anim_end && has_clicked) {
+            second_click = true;
+        }
+        if(tick > 73) {
+            has_clicked = true;
+        }
+        console.log(tick)
+    }
+
+    let second_click = false;
+    let has_clicked = false;
+    let tick = 0;
+    let abt_anim_start = null;
+    let abt_anim_end = 0;
+    let final_anim_start = null;
+    let final_anim_end = 0;
+
+    function animate() {
+        
+        tick++;
+        drawEffect(lastMouseX,lastMouseY)
+        requestAnimationFrame(animate);
+        
+        if(radius < window.innerHeight/2) {
+            radius = inverse_anim(tick/8)*window.innerHeight/1.8
+            if(segments < 128 && tick%3 == 0) {
+            segments += 2;
+            }
+        }
+        //else {console.log(tick)} //debugging
+        if(tick == 73) {
+            whiteBackground = !whiteBackground;
+        }
+        if (tick == 74) {
+            document.getElementById("justwork").style.visibility = "visible"
+        }
+        
+        if(has_clicked) {
+            if(abt_anim_start === null) {
+                abt_anim_start = tick;
+                abt_anim_end = tick+100;
+            }
+            else {
+                if (tick < abt_anim_end) {
+                    let lerp_tick = (tick-abt_anim_start)/100;
+                    animPos_x = (((1-lerp(lerp_tick)))*(window.innerWidth-475));
+                    segments = Math.floor(lerp(lerp_tick)*46+4)
+                    startAngle = lerp(lerp_tick)+(Math.PI)
+                    radius = 175*(1-lerp(lerp_tick))+window.innerHeight/2
+                    
+                }
+                else {
+                    document.getElementById("description").style.visibility = "visible"
+                    document.getElementById("description").style.textShadow = "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
+                }
+            }
+        }
+
+
+    }
+    animate()
+
+    function inverse_anim(t) {
+        return 1-1/(1+t);
+    }
+
+    function lerp(t) {
+        return (Math.cos(Math.PI*t) + 1) / 2
+    }
 }
 
 main();
 
 function shapeGen(x,y,segments,radius,angle) {
     let list = [];
-
-    let xpos_start = x;
-    let ypos_start = y;
-
+    //loop for each triangle, we need to give 3 points per triangle
     for(let n = 0; n < segments;n++) {
-        list.push(xpos_start)  //x1
-        list.push(ypos_start)  //y1
+        //first point: the center of the shape, aka the specified x and y position
+        list.push(x)  //x1
+        list.push(y)  //y1
         
+        //here we loop 2 times, this is for generating both the second and third point, 
+        //since they are both calculated the same way but just with one being 1 "step" ahead of the next
+        //on top of that we need to be able to use the 3rd point as the start of the next triangle, so
+        //using this loop we can find the calculation for the next step without looping to the next step
+        //in the outer loop.
+        //                                                             |||
+        //if you remove the "n" variable on the part under the arrows- vvv -you can see the generation of a single triangle in the whole shape
         for(let i = 0; i < 2; i++) {
-            let arguement = (angle/segments)+(((2*Math.PI)/segments)*(i+n-1))   //this is a math equation that when used as i have, lets you generate N-cornered shapes
-            let xpos = radius*Math.cos(arguement)+xpos_start;
-            let ypos = radius*Math.sin(arguement)+ypos_start;
+            let arguement = (angle/segments)+(((2*Math.PI)/segments)*(i+n))   //this is a math equation that when used as i have, lets you generate N-cornered shapes
+            let xpos = radius*Math.cos(arguement)+x;
+            let ypos = radius*Math.sin(arguement)+y;
             list.push(xpos) //x2 and x3
             list.push(ypos) //y2 and y3
         }
     }
     return list
 }
+
