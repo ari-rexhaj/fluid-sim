@@ -127,17 +127,12 @@ function main() {
     let whiteBackground = false;
     let lastMouseX = window.innerWidth/2;
     let lastMouseY = window.innerHeight/2;
-    onkeydown = (e) => {
-        if (e.key == "f") {
-            whiteBackground = !whiteBackground;
-            drawEffect(lastMouseX,lastMouseY)
-        }
-    }
-
+    
     let startAngle = 0;    
+    let segments = 4;
+    let radius = 75;
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
     function drawEffect(mousex,mousey) {
-        startAngle += 0.1;
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.uniform1i(whiteColorLocation,+!whiteBackground)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0,0,canvas.height,canvas.width,canvas.height,canvas.width,canvas.height,canvas.width,0,0,0]),gl.STATIC_DRAW)
@@ -145,10 +140,39 @@ function main() {
         gl.uniform1i(whiteColorLocation,+whiteBackground)
         
         //pass in the canvas resolution
-        shapeList = shapeGen(mousex,mousey,64,75,startAngle)
-
+        shapeList = shapeGen(mousex,mousey,segments,radius,startAngle)
+        
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(shapeList),gl.STATIC_DRAW)
         gl.drawArrays(gl.TRIANGLES,0,shapeList.length/2);
+    }
+    onkeydown = (e) => {
+        if (e.key == "f") {
+            whiteBackground = !whiteBackground;
+        }
+        if (e.key == "w") {
+            radius += 3;
+        }
+        if (e.key == "s") {
+            radius -= 3;
+        }
+        if (e.key == "a") {
+            startAngle += 0.2;
+        }
+        if (e.key == "d") {
+            startAngle -= 0.2;
+        }
+        if (e.key == "q") {
+            segments += 1;
+            console.log(segments)
+        }
+        if (e.key == "e") {
+            if (segments > 3) {
+                segments -= 1;
+            }
+            console.log(segments)
+        }
+
+        drawEffect(lastMouseX,lastMouseY)
     }
     onmousemove = (e) => {
         lastMouseX = e.clientX;
@@ -179,28 +203,4 @@ function shapeGen(x,y,segments,radius,angle) {
         }
     }
     return list
-}
-
-function makeTriangle(pos1,pos2,pos3) {
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        pos1[0],pos1[1],
-        pos2[0],pos2[1],
-        pos3[0],pos3[1],
-    ]),gl.STATIC_DRAW);
-}
-
-function makeRectangle(x,y,width,height) {
-    let x1 = x;
-    let x2 = x+width;
-    let y1 = y;
-    let y2 = y+height;
-
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        x1,y1,
-        x2,y1,
-        x1,y2,
-        x1,y2,
-        x2,y1,
-        x2,y2
-    ]),gl.STATIC_DRAW);
 }
