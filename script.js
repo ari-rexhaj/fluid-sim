@@ -129,7 +129,7 @@ function main() {
     let lastMouseY = window.innerHeight/2;
     
     let startAngle = 0;    
-    let segments = 4;
+    let segments = 64;
     let radius = 75;
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
     function drawEffect(mousex,mousey) {
@@ -161,11 +161,11 @@ function main() {
         if (e.key == "d") {
             startAngle -= 0.2;
         }
-        if (e.key == "q") {
+        if (e.key == "e") {
             segments += 1;
             console.log(segments)
         }
-        if (e.key == "e") {
+        if (e.key == "q") {
             if (segments > 3) {
                 segments -= 1;
             }
