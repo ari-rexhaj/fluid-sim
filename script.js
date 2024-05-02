@@ -241,7 +241,22 @@ function main() {
                 }
             }
         }
+        if(second_click) {
+            if(final_anim_start === null) {
+                final_anim_start = tick;
+                final_anim_end = tick+100;
+            }
+            else {
+                if(tick < final_anim_end) {
+                    let lerp_tick = (tick-final_anim_start)/100;
 
+                    animPos_x = (((lerp(lerp_tick))*lastMouseX))+window.innerWidth-475
+                }
+                else{
+                    animPos_x = lastMouseX
+                }
+            }
+        }
 
     }
     animate()
