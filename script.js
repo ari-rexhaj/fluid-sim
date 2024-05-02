@@ -29,10 +29,15 @@ function main() {
     precision highp float;
     in vec4 v_color;
     out vec4 outColor;
+    uniform int whiteColor;
 
     void main() {
-        //setting output color to constant reddish-purple
-        outColor = v_color;
+        if (whiteColor == 1) {
+            outColor = vec4(1.0,1.0,1.0,1.0);
+        }
+        else {
+            outColor = v_color;
+        }
     }
     `;
 
@@ -75,6 +80,10 @@ function main() {
     //prepared at the GPUs end
     var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
     var resolutionUniformLocation = gl.getUniformLocation(program,"u_resolution");
+    const whiteColorLocation = gl.getUniformLocation(program,"whiteColor");
+    if (whiteColorLocation !== null) {
+        console.log("whitecolorlocation did not get")
+    }
 
     //next to send update the variable, we need to use a buffer, as attributes get their data from buffers
     var positionBuffer = gl.createBuffer();
@@ -114,11 +123,26 @@ function main() {
 
     //here we tell webgl to use the shader program we made
     gl.useProgram(program)
+    
+    let whiteBackground = false;
+    let lastMouseX = window.innerWidth/2;
+    let lastMouseY = window.innerHeight/2;
+    onkeydown = (e) => {
+        if (e.key == "f") {
+            whiteBackground = !whiteBackground;
+            drawEffect(lastMouseX,lastMouseY)
+        }
+    }
+
 
     gl.uniform2f(resolutionUniformLocation,gl.canvas.width,gl.canvas.height)
-    function draw(mousex,mousey) {
-        
+    function drawEffect(mousex,mousey) {
         gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.uniform1i(whiteColorLocation,+!whiteBackground)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0,0,canvas.height,canvas.width,canvas.height,canvas.width,canvas.height,canvas.width,0,0,0]),gl.STATIC_DRAW)
+        gl.drawArrays(gl.TRIANGLES,0,6);    
+        gl.uniform1i(whiteColorLocation,+whiteBackground)
+        
         //pass in the canvas resolution
         let top = canvas.height
         let side = canvas.width
@@ -163,8 +187,11 @@ function main() {
         gl.drawArrays(gl.TRIANGLES,0,list.length/2);
     }
     onmousemove = (e) => {
-        draw(e.clientX,(canvas.height-e.clientY))
+        lastMouseX = e.clientX;
+        lastMouseY = (canvas.height-e.clientY);
+        drawEffect(lastMouseX,lastMouseY)
     }
+    drawEffect(lastMouseX,lastMouseY)
 }
 
 main();
